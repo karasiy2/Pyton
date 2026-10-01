@@ -47,60 +47,90 @@ print(f"Стамина: {stamina:.1f}")
 
 print()
 
+running = True
+actions = 0
+while running:
+    # --- Меню действий ---------------------------------
+    print("Что делаешь?")
 
-# --- Меню действий ---------------------------------
-print("Что делаешь?")
+    print("1 - осмотреться")
+    print("2 - идти вперёд")
+    print("3 - отдохнуть")
+    print("4 - копать")
+    print("5 - отжаться")
+    print("6 - тренировка")
+    print("0 - выйти из подземелья")
 
-print("1 - осмотреться")
-print("2 - идти вперёд")
-print("3 - отдохнуть")
-print("4 - копать")
-print("5 - отжаться")
+    print()
+    # --- Выбор героя -----------------------------------
+    valid = ("0", "1", "2", "3", "4", "5", "6")
+    choice = input()
+    while choice not in valid:
+        print("Такого пункта нет. Введи номер пункта из меню.")
+        choice = input()
+    match choice:
+        case "1":
+            print("Вы осмотрелись. Впереди виден лес.")
+        case "2":
+            cost = 2
+            if stamina >= cost:
+                stamina -= cost
+                print("Вы осторожно идёте вперёд. Пол скрипит под ногами.")
+            else:
+                health -= cost - stamina
+                stamina = 0
+                print("Сил больше нет — вы идёте на одном упорстве.")
+        case "3":
+            stamina = stamina + 2
+            print("Вы успешно отдохнули и набрались сил!")
+        case "4":
+            stamina = stamina - 7
+            print("Вы успешно покопали.")
+        case "5":
+            stamina = stamina - 8
+            strength = strength + 2
+            print("Вы отжались и стали сильнее!")
+        case "6":
+            strikes = 1
+            total_damage = 0
+            crit_count = 0
+            print("Вы подходите к дереву.")
+            print()
+        case "0":
+            print("Вы упали в обморок.")
+            running = False
 
+            print(f"Наносите {strikes} ударов.")
+
+            for i in range(1, strikes + 1):
+                if i % 3 == 0:
+                    hit_damage = crit_damage
+                else:
+                    hit_damage = damage
+
+                if i % 3 == 0:
+                    print(f"Удар {i}: вы нанесли {hit_damage} урона — критический!")
+                else:
+                    print(f"Удар {i}: вы нанесли {hit_damage} урона")
+                    total_damage += hit_damage
+
+        case _:
+            print("Такого действия нет.")
+    if health <= 0:
+        print(f"{hero_name} падает без сил. Подземелье забирает ещё одного искателя.")
+        running = False        
+    if running:
+        actions += 1
 print()
-# --- Выбор героя -----------------------------------
-
-choice = input()
-match choice:
-    case "1":
-        print("Вы осмотрелись. Впереди виден лес.")
-    case "2":
-        stamina = stamina - 2
-        print("Вы идёте вперёд. Лес уже ближе")
-    case "3":
-        stamina = stamina + 2
-        print("Вы успешно отдохнули и набрались сил!")
-    case "4":
-        stamina = stamina - 7
-        print("Вы успешно покопали.")
-    case "5":
-        stamina = stamina - 8
-        strength = strength + 2
-        print("Вы отжались и стали сильнее!")
-    case _:
-        print("Такого действия нет.")
-print()
-
-# --- Формуляр героя --------------------------------
-print("Характеристики героя:")
-print(f"Здоровье: {health}")
-print(f"Сила: {strength}")
-print(f"Ловкость: {agility}")
-print(f"Выносливость: {endurance}")
-
-print()
-
-print(f"Урон героя: {damage:.1f}")
-print(f"Критический урон: {crit_damage:.1f}")
-print(f"Стамина: {stamina:.1f}")
-
-print()
+print(f"Здоровье: {health} Запас сил: {stamina}")
 
 # --- Прощание ---
-titles = f"Прощай, {hero_name}!"
 frames = "=" * 20
 
-print(frames)
-print(" " + titles + " ")
-print(frames)
+print(frame)
+if health <= 0:
+    print(f"Ты не дошёл, {hero_name}. Действий совершено: {actions}.")
+else:
+    print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
+print(frame)
 
