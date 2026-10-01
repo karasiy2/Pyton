@@ -7,4 +7,4 @@ print("Числа между A и B:")
 for i in range(A, B + 1):
     print(i, end=" ")
 
-print(f"\nКоличество чисел N = {N}")
+print(f"Количество чисел N = {N}")
