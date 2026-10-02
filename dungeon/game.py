@@ -21,11 +21,20 @@ print()
 # --- Настройка героя -------------------------------
 print("Настройка героя.")
 print("Здоровье, сила, ловкость, выносливость — по одному числу в строке:")
-health = int(input())
-strength = int(input())
-agility = int(input())
-endurance = int(input())
 
+while True:
+    try:
+        health = int(input())
+        strength = int(input())
+        agility = int(input())
+        endurance = int(input())
+        if health <= 0:
+            raise ValueError(f"Здоровье должно быть положительным, а введено {health}")
+        if strength < 0 or agility < 0 or endurance < 0:
+            raise ValueError("Характеристики не могут быть отрицательными")
+        break
+    except ValueError:
+        print("Ой: одна из строк не число. Введите все четыре снова:")
 # --- Расчёт урона ----------------------------------
 base_attack = 10
 damage = base_attack + strength * 1.5
@@ -63,11 +72,17 @@ while running:
 
     print()
     # --- Выбор героя -----------------------------------
-    valid = ("0", "1", "2", "3", "4", "5", "6")
-    choice = input()
-    while choice not in valid:
-        print("Такого пункта нет. Введи номер пункта из меню.")
+    menu_last = 6
+    while True:
         choice = input()
+        try:
+            menu_number = int(choice)
+        except ValueError:
+            print("Такого пункта нет. Введи номер пункта из меню.")
+            continue
+        if 0 <= menu_number <= menu_last:
+            break
+        print("Такого пункта нет. Введи номер пункта из меню.")
     match choice:
         case "1":
             print("Вы осмотрелись. Впереди виден лес.")
