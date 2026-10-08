@@ -1,3 +1,4 @@
+import random
 # --- Заголовок ------------------------------------
 
 title = "КРУТОЕ ПРИКЛЮЧЕНИЕ"
@@ -56,6 +57,10 @@ print(f"Стамина: {stamina:.1f}")
 
 print()
 
+# --- Блок 1. Список врагов и журнал боя ---
+enemies = ["ghoul", "skeleton", "spider", "bat"]
+log = []
+
 running = True
 actions = 0
 while running:
@@ -68,11 +73,12 @@ while running:
     print("4 - копать")
     print("5 - отжаться")
     print("6 - тренировка")
+    print("7 - зайти глубже в лес")
     print("0 - выйти из подземелья")
 
     print()
     # --- Выбор героя -----------------------------------
-    menu_last = 6
+    menu_last = 7
     while True:
         choice = input()
         try:
@@ -111,6 +117,62 @@ while running:
             crit_count = 0
             print("Вы подходите к дереву.")
             print()
+        case "7": 
+            print("Вы забираетесь глубже в лес...")
+            
+            if not enemies:
+                print("...но врагов больше нет.")
+            else:
+                enemy = random.choice(enemies)
+                enemy_hp = 45
+                round_n = 0
+                
+                print(f"{enemy} появляется из темноты!")
+                
+                hero_strikes = 0
+                
+                # Цикл боя
+                while enemy_hp > 0 and health > 0:
+                    round_n += 1
+                    hero_strikes += 1
+                    
+                    if hero_strikes % 3 == 0:
+                        current_damage = crit_damage
+                        is_crit = True
+                    else:
+                        current_damage = damage
+                        is_crit = False
+                        
+                    enemy_hp -= current_damage
+                    
+                    if enemy_hp <= 0:
+                        if is_crit:
+                            print(f"Round {round_n}: hero hits {current_damage:.1f} (critical!). Enemy HP: 0. critical! The enemy falls.")
+                        else:
+                            print(f"Round {round_n}: hero hits {current_damage:.1f}. Enemy HP: 0. The enemy falls.")
+                        
+                        log.append(f"round {round_n}: hero -{current_damage:.1f}, {enemy} -0")
+                        break
+                    
+                    enemy_damage = random.randint(2, 6)
+                    health -= enemy_damage
+                    
+                    if is_crit:
+                        print(f"Round {round_n}: hero hits {current_damage:.1f} (critical!), enemy hits {enemy_damage}. Enemy HP: {enemy_hp:.1f}")
+                    else:
+                        print(f"Round {round_n}: hero hits {current_damage:.1f}, enemy hits {enemy_damage}. Enemy HP: {enemy_hp:.1f}")
+                    
+                    log.append(f"round {round_n}: hero -{current_damage:.1f}, {enemy} -{enemy_damage}")
+                
+                if enemy_hp <= 0:
+                    enemies.remove(enemy)
+                    print(f"The {enemy} is defeated! {len(enemies)} enemies left in the dungeon.")
+                
+                if log:
+                    print(f"Последняя строка боя: {log[-1]}")
+                    
+                print(f"Combat: {round_n} rounds.")
+                
         case "0":
             print("Вы упали в обморок.")
             running = False
@@ -148,4 +210,3 @@ if health <= 0:
 else:
     print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
 print(frame)
-
