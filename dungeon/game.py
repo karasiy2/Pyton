@@ -44,7 +44,6 @@ damage = base_attack + strength * 1.5
 crit_damage = damage * 2
 stamina = endurance // agility
 
-# --- Потолки характеристик (Входные максимумы) ----
 max_health = health
 max_stamina = stamina
 
@@ -66,6 +65,15 @@ enemies = ["ghoul", "skeleton", "spider", "bat"]
 log = []
 gold_total = 0
 ability_bonus = 0
+prices = {"potion": 10, "torch_oil": 15, "war_elixir": 40}
+inventory = {}
+
+enemy_stats = {
+    "skeleton": {"hp": 45, "damage": 6, "loot": 25},
+    "ghoul":    {"hp": 30, "damage": 4, "loot": 15},
+    "spider":   {"hp": 20, "damage": 3, "loot": 10},
+    "bat":      {"hp": 12, "damage": 2, "loot": 5},
+}
 
 # =====================================================================
 # --- ОПРЕДЕЛЕНИЯ ФУНКЦИЙ (ОГЛАВЛЕНИЕ) --------------------------------
@@ -90,21 +98,22 @@ def fight(enemy, hero_health, bonus=0):
     """Ведет пошаговый автоматический бой с врагом до гибели одного из участников.
     
     Принимает:
-        enemy (str) — имя врага.
+        enemy (str) — имя врага (должно быть в глобальном словаре enemy_stats).
         hero_health (int) — текущее здоровье героя на момент начала боя.
-        bonus (int/float, по умолчанию 0) — постоянная надбавка к урону (без эликсира = 0).
+        bonus (int/float, по умолчанию 0) — постоянная надбавка к урону героя.
     Возвращает:
         tuple (list, bool, int, int) — кортеж из четырех элементов по именам:
             - rounds (list): таблица раундов боя для журнала.
             - won (bool): True, если враг пал, иначе False.
             - hero_health (int): обновленное здоровье героя после боя.
-            - loot (int): количество добытого золота (трофеи за победу).
+            - loot (int): фиксированное золото из карточки врага.
     Описание:
+        Карточка параметров врага извлекается из enemy_stats по имени.
+        Обязательно наличие в карточке ключей: 'hp', 'damage', 'loot'.
         Активно печатает ход сражения по раундам в консоль через f-строки.
-        Переменная bonus прибавляется после расчета критического удара.
-        Глобальные переменные не меняет, отдавая результаты через return.
     """
-    enemy_hp = 45.0
+    stats = enemy_stats[enemy]
+    enemy_hp = float(stats["hp"])
     rounds = []
     round_n = 0
     print(f"You descend the stairs. Out of the darkness comes {enemy}!")
@@ -122,17 +131,14 @@ def fight(enemy, hero_health, bonus=0):
             line += " Enemy falls."
             rounds.append([round_n, hit, 0])
         else:
-            blow = random.randint(2, 6)
+            blow = stats["damage"]
             hero_health -= blow
             line += f" {enemy} health: {enemy_hp:.1f}. {enemy.capitalize()} hits for {blow}."
             rounds.append([round_n, hit, blow])
         print(line)
         
     won = enemy_hp <= 0
-    if won:
-        loot = 10 + 5 * round_n
-    else:
-        loot = 0
+    loot = stats["loot"] if won else 0
         
     return rounds, won, hero_health, loot
 
@@ -159,7 +165,7 @@ def print_leaderboard(log):
     """Выводит на экран три лучших раунда героя по урону и сильнейший удар врага.
     
     Принимает:
-        log (list) — глобальный журнал таблицы чисел всех раундов.
+        log — глобальный журнал таблицы чисел всех раундов.
     Возвращает:
         None — контракт функции подразумевает исключительно вывод текста в консоль.
     Описание:
@@ -183,7 +189,7 @@ def print_run_summary(log):
     """Рассчитывает и выводит суммарный и средний нанесенный героем урон за весь забег.
     
     Принимает:
-        log (list) — глобальный журнал таблицы чисел всех раундов.
+        log — глобальный журнал таблицы чисел всех раундов.
     Возвращает:
         None — контракт функции подразумевает только вывод текста.
     Описание:
@@ -197,17 +203,12 @@ def print_run_summary(log):
     else:
         print("No battles this run.")
 
-
-# =====================================================================
-# --- ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (СЮЖЕТ) -------------------------------------
-# =====================================================================
-
 running = True
 actions = 0
 
 try:
     while running:
-        print("What do you do?")
+        print("Что ты делаешь?")
         print("1 - осмотреться")
         print("2 - идти вперёд")
         print("3 - отдохнуть")
@@ -217,10 +218,12 @@ try:
         print("7 - зайти глубже в лес")
         print("8 - leaderboard")
         print("9 - shop")
+        print("10 - backpack")
+        print("11 - drink potion")
         print("0 - выйти из подземелья")
         print()
         
-        menu_last = 9
+        menu_last = 11
         while True:
             choice = input()
             try:
@@ -271,7 +274,8 @@ try:
                     total_damage += hit_damage
                 print(f"Всего нанесено урона на тренировке: {total_damage:.1f} (Критов: {crit_count})")
                 print()
-            case "7": 
+                
+            case "7":
                 if not enemies:
                     print("You descend the stairs. But the dungeon is empty.")
                 else:
@@ -292,37 +296,47 @@ try:
                 
             case "9":
                 print("Shop:")
-                print("1 - potion (+10 health): 10 gold")
-                print("2 - torch oil (+5 stamina): 15 gold")
-                print("3 - war elixir (+2 damage for the run): 40 gold")
-                print("Item number (0 - not buying):")
-                item = input()
-                prices = (10, 15, 40)
-                names = ("potion", "torch oil", "war elixir")
-                if item in ("1", "2", "3"):
-                    price = prices[int(item) - 1]
-                    name = names[int(item) - 1]
-                    print("Quantity (Enter for one):")
-                    qty_line = input()
-                    if qty_line == "":
-                        qty = 1
-                        gold_total, ok = buy(price, gold_total)
-                    else:
-                        qty = int(qty_line)
-                        gold_total, ok = buy(price, gold_total, quantity=qty)
-                    
-                    if ok:
-                        if item == "1":
-                            health = min(health + 10 * qty, max_health)
-                        elif item == "2":
-                            stamina = min(stamina + 5 * qty, max_stamina)
+                for name, price in prices.items():
+                    print(f"{name}: {price} gold")
+                print("Item name (empty line - not buying):")
+                name = input()
+                if name != "":
+                    if name in prices:
+                        price = prices[name]
+                        print("Quantity (Enter for one):")
+                        qty_line = input()
+                        if qty_line == "":
+                            qty = 1
+                            gold_total, ok = buy(price, gold_total)
                         else:
-                            ability_bonus += 2 * qty
-                        print(f"Bought {qty} {name} for {price * qty} gold. Gold left: {gold_total}.")
+                            qty = int(qty_line)
+                            gold_total, ok = buy(price, gold_total, quantity=qty)
+                        
+                        if ok:
+                            inventory[name] = inventory.get(name, 0) + qty
+                            print(f"Bought {qty} {name} for {price * qty} gold. Gold left: {gold_total}.")
+                        else:
+                            print(f"Not enough gold: need {price * qty}, have {gold_total}.")
                     else:
-                        print(f"Not enough gold: need {price * qty}, have {gold_total}.")
-                elif item != "0":
-                    print("No such item in the shop.")
+                        print("No such item in the shop.")
+                        
+            case "10":
+                if not inventory:
+                    print("Backpack is empty.")
+                else:
+                    print("Backpack:")
+                    for name, qty in inventory.items():
+                        print(f"{name}: {qty} pcs")
+                        
+            case "11":
+                if inventory.get("potion", 0) == 0:
+                    print("No potions in the backpack.")
+                else:
+                    health = min(health + 10, max_health)
+                    inventory["potion"] -= 1
+                    if inventory["potion"] == 0:
+                        del inventory["potion"]
+                    print(f"You drink a potion. Health: {health}. Potions left: {inventory.get('potion', 0)}")
                     
             case "0":
                 print("Вы решили выйти.")
@@ -348,4 +362,11 @@ finally:
         
     print_run_summary(log)
     print(f"Health: {health}/{max_health} Stamina: {stamina}/{max_stamina} Enemies left: {len(enemies)} Gold: {gold_total}")
+    
+    if inventory:
+        print("Left behind in the backpack:")
+        for name, qty in inventory.items():
+            print(f"{name}: {qty} pcs")
+    else:
+        print("Left behind in the backpack: nothing.")
     print(frame)
