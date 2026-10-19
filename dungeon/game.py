@@ -116,7 +116,7 @@ def fight(enemy, hero_health, bonus=0):
     enemy_hp = float(stats["hp"])
     rounds = []
     round_n = 0
-    print(f"You descend the stairs. Out of the darkness comes {enemy}!")
+    print(f"Вы заходите в глубь. Из темноты появляется {enemy}!")
     
     while enemy_hp > 0 and hero_health > 0:
         round_n += 1
@@ -216,10 +216,10 @@ try:
         print("5 - отжаться")
         print("6 - тренировка")
         print("7 - зайти глубже в лес")
-        print("8 - leaderboard")
-        print("9 - shop")
-        print("10 - backpack")
-        print("11 - drink potion")
+        print("8 - таблица лидеров")
+        print("9 - магазин")
+        print("10 - инвентарь")
+        print("11 - выпить зелье")
         print("0 - выйти из подземелья")
         print()
         
@@ -277,7 +277,7 @@ try:
                 
             case "7":
                 if not enemies:
-                    print("You descend the stairs. But the dungeon is empty.")
+                    print("Вы заходите в глубь леса, но там никого нет.")
                 else:
                     enemy = random.choice(enemies)
                     rounds, won, health, loot = fight(enemy, health, bonus=ability_bonus)
@@ -298,12 +298,12 @@ try:
                 print("Shop:")
                 for name, price in prices.items():
                     print(f"{name}: {price} gold")
-                print("Item name (empty line - not buying):")
+                print("Название предмета (пустая строка — не покупаю):")
                 name = input()
                 if name != "":
                     if name in prices:
                         price = prices[name]
-                        print("Quantity (Enter for one):")
+                        print("Количество:")
                         qty_line = input()
                         if qty_line == "":
                             qty = 1
@@ -314,29 +314,29 @@ try:
                         
                         if ok:
                             inventory[name] = inventory.get(name, 0) + qty
-                            print(f"Bought {qty} {name} for {price * qty} gold. Gold left: {gold_total}.")
+                            print(f"Приобретено {qty} {name} за {price * qty} золота. Остаток золота: {gold_total}.")
                         else:
-                            print(f"Not enough gold: need {price * qty}, have {gold_total}.")
+                            print(f"Недостаточно золота: требуется {price * qty}, у вас есть: {gold_total}.")
                     else:
-                        print("No such item in the shop.")
+                        print("В магазине такого товара нет.")
                         
             case "10":
                 if not inventory:
-                    print("Backpack is empty.")
+                    print("Рюкзак пуст.")
                 else:
-                    print("Backpack:")
+                    print("Рюкзак:")
                     for name, qty in inventory.items():
                         print(f"{name}: {qty} pcs")
                         
             case "11":
                 if inventory.get("potion", 0) == 0:
-                    print("No potions in the backpack.")
+                    print("В рюкзаке нет зелий.")
                 else:
                     health = min(health + 10, max_health)
                     inventory["potion"] -= 1
                     if inventory["potion"] == 0:
                         del inventory["potion"]
-                    print(f"You drink a potion. Health: {health}. Potions left: {inventory.get('potion', 0)}")
+                    print(f"Вы выпиваете зелье. Здоровье: {health}. Осталось зелий: {inventory.get('potion', 0)}")
                     
             case "0":
                 print("Вы решили выйти.")
@@ -361,12 +361,12 @@ finally:
         print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
         
     print_run_summary(log)
-    print(f"Health: {health}/{max_health} Stamina: {stamina}/{max_stamina} Enemies left: {len(enemies)} Gold: {gold_total}")
+    print(f"здоровье: {health}/{max_health} Стамина: {stamina}/{max_stamina} Врагов осталось: {len(enemies)} Золото: {gold_total}")
     
     if inventory:
-        print("Left behind in the backpack:")
+        print("Осталось в рюкзаке:")
         for name, qty in inventory.items():
             print(f"{name}: {qty} pcs")
     else:
-        print("Left behind in the backpack: nothing.")
+        print("В рюкзаке пусто.")
     print(frame)
