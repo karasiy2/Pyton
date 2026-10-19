@@ -370,3 +370,5 @@ finally:
     else:
         print("В рюкзаке пусто.")
     print(frame)
+
+#код работает - Дима
