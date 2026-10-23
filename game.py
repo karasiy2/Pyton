@@ -1,9 +1,5 @@
 import random
 
-# =====================================================================
-# --- ГЛОБАЛЬНЫЕ НАСТРОЙКИ И ПРАВИЛА ИГРЫ -----------------------------
-# =====================================================================
-
 title = "КРУТОЕ ПРИКЛЮЧЕНИЕ"
 frame = "=" * 20
 
@@ -12,7 +8,6 @@ print(" " + title + " ")
 print(frame)
 print()
 
-# --- Знакомство с героем --------------------------
 print("Как зовут героя?")
 hero_name = input()
 
@@ -20,7 +15,6 @@ print(f"Добро пожаловать, {hero_name}!")
 print("Ты появляешься на пустом поле.")
 print()
 
-# --- Настройка героя -------------------------------
 print("Настройка героя.")
 print("Здоровье, сила, ловкость, выносливость — по одному числу в строке:")
 
@@ -38,17 +32,14 @@ while True:
     except ValueError:
         print("Ой: одна из строк не число. Введите все четыре снова:")
 
-# --- Расчёт урона и энергии ------------------------
 base_attack = 10
 damage = base_attack + strength * 1.5
 crit_damage = damage * 2
 stamina = endurance // agility
 
-# --- Потолки характеристик (Входные максимумы) ----
 max_health = health
 max_stamina = stamina
 
-# --- Формуляр героя --------------------------------
 print("Характеристики героя:")
 print(f"Здоровье: {health} (макс: {max_health})")
 print(f"Сила: {strength}")
@@ -61,7 +52,6 @@ print(f"Критический урон: {crit_damage:.1f}")
 print(f"Стамина: {stamina:.1f} (макс: {max_stamina})")
 print()
 
-# --- Состояние забега -----------------------------
 enemies = ["упырь", "скелет", "паук", "летучая_мышь"]
 log = []
 gold_total = 100  
@@ -77,47 +67,58 @@ enemy_stats = {
     "летучая_мышь":  {"hp": 12, "damage": 2, "loot": 5},
 }
 
+MAP = [
+    ["#", "#", "#", "#", "#"],
+    ["#", ".", ".", "#", "#"],
+    ["#", ".", "#", ".", "#"],
+    ["#", ".", ".", ".", "#"],
+    ["#", "#", "S", ".", "#"],
+]
+
+hero_r, hero_c = 4, 2
+visited = {(4, 2)}
+
+DIRECTIONS = {"north": (-1, 0), "south": (1, 0), "west": (0, -1), "east": (0, 1)}
+
+LOOT = {(1, 1): "старая_монета", (2, 3): "пыльное_зелье", (3, 3): "амулет_стража"}
+found_loot = set()
+
 commands = [
-    "осмотреться", "идти", "отдохнуть", "слушать", "факел", "тренировка", "спуститься",
-    "лидеры", "магазин", "рюкзак", "выпить зелье",
+    "осмотреться", "идти [направление]", "отдохнуть", "слушать", "факел", "тренировка", "спуститься",
+    "лидеры", "магазин", "рюкзак", "выпить зелье", "карта", "разведка",
     "купить <предмет> [количество]", "выход"
 ]
 
 MENU = [
-    "Что делаешь? (введи номер или команду; help для справки)",
-    "1 - осмотреться (осмотреться)",
-    "2 - идти вперёд (идти)",
-    "3 - отдохнуть (отдохнуть)",
-    "4 - прислушаться (слушать)",
-    "5 - зажечь факел (факел)",
-    "6 - тренироваться (тренировка)",
-    "7 - спуститься глубже (спуститься)",
-    "8 - таблица рекордов (лидеры)",
-    "9 - зайти в магазин (магазин)",
-    "10 - проверить рюкзак (рюкзак)",
-    "11 - выпить зелье (выпить)",
-    "0 - выйти из подземелья (выход)"
+    "Что ты делаешь?",
+    "1 - осмотреться",
+    "2 - идти вперёд",
+    "3 - отдохнуть",
+    "4 - прислушаться",
+    "5 - зажечь факел",
+    "6 - тренироваться",
+    "7 - спуститься глубже",
+    "8 - таблица рекордов",
+    "9 - зайти в магазин",
+    "10 - проверить рюкзак",
+    "11 - выпить зелье",
+    "12 - показать карту",
+    "13 - запустить разведку",
+    "0 - выйти из подземелья"
 ]
 
 num_to_verb = {
     "1": "осмотреться", "2": "идти", "3": "отдохнуть", "4": "слушать",
     "5": "факел", "6": "тренировка", "7": "спуститься", "8": "лидеры",
-    "9": "магазин", "10": "рюкзак", "11": "выпить", "0": "выход"
+    "9": "магазин", "10": "рюкзак", "11": "выпить", "12": "карта", "13": "разведка", "0": "выход"
 }
 
-# =====================================================================
-# --- ОПРЕДЕЛЕНИЯ ФУНКЦИЙ (ОГЛАВЛЕНИЕ) --------------------------------
-# =====================================================================
-
 def hero_hit(strike_n):
-    """Рассчитывает урон героя в зависимости от номера удара."""
     if strike_n % 3 == 0:
         return crit_damage, True
     return damage, False
 
-
 def fight(enemy, hero_health, bonus=0):
-    """Ведет пошаговый автоматический бой с врагом до гибели одного из участников."""
     stats = enemy_stats[enemy]
     enemy_hp = float(stats["hp"])
     rounds = []
@@ -148,43 +149,41 @@ def fight(enemy, hero_health, bonus=0):
         
     return rounds, won, hero_health, loot
 
-
 def buy(price, gold, quantity=1):
-    """Проводит транзакцию покупки предметов за золото."""
     cost = price * quantity
     if gold >= cost:
         return gold - cost, True
     return gold, False
 
-
 def print_leaderboard(log):
-    """Выводит на экран три лучших раунда героя по урону и сильнейший удар врага."""
     if not log:
         print("Вы еще не сражались.")
         return
         
-    top = sorted(log, key=lambda r: r[1], reverse=True)[:3]
+    top = sorted(log, key=lambda r: r, reverse=True)[:3]
     print("Таблица лидеров (урон героя):")
     for i in range(len(top)):
-        print(f"{i + 1}. Раунд {top[i][0]}: {top[i][1]:.1f}")
+        print(f"{i + 1}. Раунд {top[i]}: {top[i]:.1f}")
         
-    worst = max(log, key=lambda r: r[2])
-    print(f"Самый сильный удар врага: {worst[2]} (в раунде {worst[0]}).")
-
+    worst = max(log, key=lambda r: r)
+    print(f"Самый сильный удар врага: {worst} (в раунде {worst}).")
 
 def print_run_summary(log):
-    """Рассчитывает и выводит суммарный и средний нанесенный героем урон."""
-    total = sum(r[1] for r in log)
+    total = sum(r for r in log)
     rounds = len(log)
     if rounds > 0:
         print(f"Нанесено урона: {total:.1f} за {rounds} раундов, в среднем {total / rounds:.1f} за раунд.")
     else:
         print("В этом прохождении не было сражений.")
 
-
-# =====================================================================
-# --- ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (СЮЖЕТ) -------------------------------------
-# =====================================================================
+def scout(r, c, seen):
+    if (r, c) in seen or MAP[r][c] == "#":
+        return 0
+    seen.add((r, c))
+    total = 1
+    for dr, dc in DIRECTIONS.values():
+        total += scout(r + dr, c + dc, seen)
+    return total
 
 running = True
 actions = 0
@@ -202,7 +201,7 @@ try:
             cmd = line.strip().lower()
             
         words = cmd.split()
-        verb = words[0]
+        verb = words
         
         if cmd in num_to_verb:
             verb = num_to_verb[cmd]
@@ -210,22 +209,38 @@ try:
         match verb:
             case "help":
                 print("Доступные команды: " + ", ".join(commands) + ".")
-                print("Номера 0-11 работают как и прежде.")
+                print("Номера 0-13 работают как и прежде.")
                 print()
-                continue 
+                continue
                 
             case "осмотреться":
                 print("Вы осматриваетесь вокруг. Комната пуста, на полу лишь пыль.")
                 
             case "идти":
-                cost = 2
-                if stamina >= cost:
-                    stamina -= cost
-                    print("Вы осторожно идёте вперёд. Пол скрипит под ногами.")
+                if len(words) > 1 and words in DIRECTIONS:
+                    dr, dc = DIRECTIONS[words]
+                    nr, nc = hero_r + dr, hero_c + dc
+                    if 0 <= nr < len(MAP) and 0 <= nc < len(MAP[nr]) and MAP[nr][nc] != "#":
+                        hero_r, hero_c = nr, nc
+                        visited.add((hero_r, hero_c))
+                        print(f"Ты шагаешь на {words}. Комната ({hero_r}, {hero_c}).")
+                        
+                        if (hero_r, hero_c) in LOOT:
+                            item = LOOT[(hero_r, hero_c)]
+                            if item not in found_loot:
+                                found_loot.add(item)
+                                print(f"Ты находишь предмет: {item}! Уникальный лут: {len(found_loot)}.")
+                    else:
+                        print(f"Не могу идти на {words}: стена или край карты.")
                 else:
-                    health -= cost - stamina
-                    stamina = 0
-                    print("Сил больше нет — вы идёте на одном упорстве.")
+                    cost = 2
+                    if stamina >= cost:
+                        stamina -= cost
+                        print("Вы осторожно идёте вперёд. Пол скрипит под ногами.")
+                    else:
+                        health -= cost - stamina
+                        stamina = 0
+                        print("Сил больше нет — вы идёте на одном упорстве.")
                     
             case "отдохнуть":
                 stamina = min(stamina + 2, max_stamina)
@@ -280,7 +295,7 @@ try:
                     print(f"{name}: {price} золота")
                 print()
                 continue
-                
+                        
             case "купить":
                 if len(words) > 1 and words[-1].isdigit():
                     qty = int(words[-1])
@@ -288,22 +303,22 @@ try:
                 else:
                     qty = 1
                     item = "_".join(words[1:])
-                    
+                
                 if item == "":
                     print("Купить что? Пример ввода: купить зелье.")
                     continue
-                    
+                
                 if item not in prices:
                     print("Такого предмета нет в магазине.")
                     continue
-                    
+                
                 gold_total, ok = buy(prices[item], gold_total, quantity=qty)
                 if ok:
                     inventory[item] = inventory.get(item, 0) + qty
                     print(f"Куплено {qty} шт. '{item}' за {prices[item] * qty} золота. Осталось золота: {gold_total}.")
                 else:
                     print(f"Недостаточно золота: требуется {prices[item] * qty}, у вас есть {gold_total}.")
-                    
+                
             case "рюкзак":
                 if not inventory:
                     print("Рюкзак пуст.")
@@ -311,7 +326,7 @@ try:
                     print("Содержимое рюкзака:")
                     for name, qty in inventory.items():
                         print(f"{name}: {qty} шт.")
-                        
+                    
             case "выпить":
                 item = "_".join(words[1:]) or "зелье"
                 if inventory.get(item, 0) == 0:
@@ -322,16 +337,32 @@ try:
                     if inventory[item] == 0:
                         del inventory[item]
                     print(f"Вы выпили '{item}'. Здоровье: {health}. Осталось в рюкзаке: {inventory.get(item, 0)} шт.")
-                    
+                
+            case "карта":
+                print("Карта:")
+                for i in range(len(MAP)):
+                    cells = []
+                    for j in range(len(MAP[i])):
+                        cell = "@" if (i, j) == (hero_r, hero_c) else MAP[i][j]
+                        cells.append(cell)
+                    print(" ".join(cells))
+                print()
+                continue
+            
+            case "разведка":
+                seen = set()
+                print(f"Разведка: доступно комнат для посещения — {scout(hero_r, hero_c, seen)}.")
+                print()
+                continue
+            
             case "выход":
                 print("Вы поднимаетесь обратно к свету. Подземелье остается позади.")
                 running = False
-                
+            
             case _:
-                # Ветка Блока 4: Вывод исходной (line), а не отформатированной строки
                 print(f"Не понимаю команду: '{line.strip()}'. Введите 'help' для справки.")
-                continue  # Ошибочный ввод не тратит круг
-                
+                continue
+            
         if health <= 0:
             print(f"{hero_name} падает без сил. Подземелье забирает ещё одного искателя.")
             running = False        
@@ -339,20 +370,20 @@ try:
             actions += 1
 
 finally:
-    print()
-    print(frame)
-    if health <= 0:
-        print(f"Ты не дошёл, {hero_name}. Действий совершено: {actions}.")
-    else:
-        print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
+        print()
+        print(frame)
+        if health <= 0:
+            print(f"Ты не дошёл, {hero_name}. Действий совершено: {actions}.")
+        else:
+            print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
         
-    print_run_summary(log)
-    print(f"Здоровье: {health}/{max_health} Стамина: {stamina}/{max_stamina} Осталось врагов: {len(enemies)} Золото: {gold_total}")
+        print_run_summary(log)
+        print(f"Здоровье: {health}/{max_health} Стамина: {stamina}/{max_stamina} Осталось врагов: {len(enemies)} Золото: {gold_total}")
     
-    if inventory:
-        print("Оставлено в рюкзаке:")
-        for name, qty in inventory.items():
-            print(f"{name}: {qty} шт.")
-    else:
-        print("Оставлено в рюкзаке: ничего.")
-    print(frame)
+        if inventory:
+            print("Оставлено в рюкзаке:")
+            for name, qty in inventory.items():
+                print(f"{name}: {qty} шт.")
+        else:
+            print("Оставлено в рюкзаке: ничего.")
+        print(frame)
