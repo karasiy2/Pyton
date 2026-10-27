@@ -10,13 +10,81 @@ try:
 except ImportError:
     COLOR = False
 
+VERSION = "1.0"
 title = "КРУТОЕ ПРИКЛЮЧЕНИЕ"
 frame = "=" * 20
 
 print(frame)
 print(" " + title + " ")
+print(f"v{VERSION}")
 print(frame)
 print()
+
+num_to_verb = {
+    "1": "осмотреться", "2": "идти", "3": "отдохнуть", "4": "слушать",
+    "5": "факел", "6": "тренировка", "7": "спуститься", "8": "лидеры",
+    "9": "магазин", "10": "рюкзак", "11": "выпить", "12": "карта", "13": "разведка", "14": "newgame", "0": "выход"
+}
+
+def parse_command(line):
+    cmd = line.strip().lower()
+    words = cmd.split()
+    if not words:
+        return "", []
+    verb = words[0]
+    if cmd in num_to_verb:
+        verb = num_to_verb[cmd]
+    return verb, words
+
+def print_leaderboard(log):
+    if not log:
+        print("Вы еще не сражались.")
+        return
+        
+    top = sorted(log, key=lambda r: r[1], reverse=True)[:3]
+    print("Таблица лидеров (урон героя):")
+    for i in range(len(top)):
+        print(f"{i + 1}. Раунд {top[i][0]}: {top[i][1]:.1f}")
+        
+    worst = max(log, key=lambda r: r[2])
+    print(f"Самый сильный удар врага: {worst[2]} (в раунде {worst[0]}).")
+
+def print_run_summary(log):
+    total = 0.0
+    rounds = 0
+    if isinstance(log, (list, tuple)):
+        for r in log:
+            if isinstance(r, (list, tuple)) and len(r) > 1:
+                total += r[1]
+                rounds += 1
+    if rounds > 0:
+        print(f"Нанесено урона: {total:.1f} за {rounds} раундов, в среднем {total / rounds:.1f} за раунд.")
+    else:
+        print("В этом прохождении не было сражений.")
+
+def scout(r, c, seen):
+    if not (0 <= r < len(MAP) and 0 <= c < len(MAP[r])):
+        return 0
+    if (r, c) in seen or MAP[r][c] == "#":
+        return 0
+    seen.add((r, c))
+    total = 1
+    for dr, dc in DIRECTIONS.values():
+        total += scout(r + dr, c + dc, seen)
+    return total
+
+def write_save():
+    save = {}
+    save["hero"] = hero.to_dict()
+    save["gold"] = gold_total
+    save["actions"] = actions
+    save["enemies"] = enemies
+    save["position"] = [hero_r, hero_c]
+    save["visited"] = [list(p) for p in visited]
+    save["loot"] = sorted(found_loot)
+    
+    with open("save.json", "w", encoding="utf-8") as f:
+        json.dump(save, f, ensure_ascii=False, indent=2)
 
 loaded = None
 if os.path.exists("save.json"):
@@ -55,24 +123,10 @@ if loaded is None:
         except ValueError:
             print("Ой: одна из строк не число. Введите все четыре снова:")
 
-    base_attack = 10
-    damage = base_attack + strength * 1.5
-    crit_damage = damage * 2
-    stamina = endurance // agility
-
-    max_health = health
-    max_stamina = stamina
-
+    hero = dungeon.Hero(hero_name, health, strength, agility, endurance)
+    
     print("Характеристики героя:")
-    print(f"Здоровье: {health} (макс: {max_health})")
-    print(f"Сила: {strength}")
-    print(f"Ловкость: {agility}")
-    print(f"Выносливость: {endurance}")
-    print()
-
-    print(f"Урон героя: {damage:.1f}")
-    print(f"Критический урон: {crit_damage:.1f}")
-    print(f"Стамина: {stamina:.1f} (макс: {max_stamina})")
+    print(hero)
     print()
 
     enemies = ["упырь", "скелет", "паук", "летучая_мышь"]
@@ -82,20 +136,14 @@ if loaded is None:
     visited = {(4, 2)}
     found_loot = set()
 else:
-    hero_name = loaded["hero"]
-    health = loaded["health"]
-    stamina = loaded["stamina"]
+    hero = dungeon.Hero.from_dict(loaded["hero"])
     gold_total = loaded["gold"]
     actions = loaded["actions"]
     enemies = loaded["enemies"]
     hero_r, hero_c = loaded["position"]
     visited = {tuple(p) for p in loaded["visited"]}
     found_loot = set(loaded["loot"])
-    
-    base_attack = 10
-    damage = base_attack + (health * 0.1)
-    crit_damage = damage * 2
-    print(f"Забег возобновлен: здоровье {health}, золото {gold_total}, осталось врагов {len(enemies)}.")
+    print(f"Забег возобновлен: здоровье {hero.health}, золото {gold_total}, осталось врагов {len(enemies)}.")
 
 log = []
 ability_bonus = 0
@@ -109,8 +157,8 @@ MAP = [
     ["#", "#", "S", ".", "#"],
 ]
 
-max_health = health if loaded is None else health
-max_stamina = stamina if loaded is None else stamina
+max_health = hero.health if loaded is None else hero.health
+max_stamina = hero.stamina if loaded is None else hero.stamina
 
 DIRECTIONS = {"north": (-1, 0), "south": (1, 0), "west": (0, -1), "east": (0, 1)}
 LOOT = {(1, 1): "старая_монета", (2, 3): "пыльное_зелье", (3, 3): "амулет_стража"}
@@ -140,66 +188,6 @@ MENU = [
     "0 - выйти из подземелья (выход)"
 ]
 
-num_to_verb = {
-    "1": "осмотреться", "2": "идти", "3": "отдохнуть", "4": "слушать",
-    "5": "факел", "6": "тренировка", "7": "спуститься", "8": "лидеры",
-    "9": "магазин", "10": "рюкзак", "11": "выпить", "12": "карта", "13": "разведка", "14": "newgame", "0": "выход"
-}
-
-def print_leaderboard(log):
-    if not log:
-        print("Вы еще не сражались.")
-        return
-        
-    top = sorted(log, key=lambda r: r, reverse=True)[:3]
-    print("Таблица лидеров (урон героя):")
-    for i in range(len(top)):
-        print(f"{i + 1}. Раунд {top[i]}: {top[i]:.1f}")
-        
-    worst = max(log, key=lambda r: r)
-    print(f"Самый сильный удар врага: {worst} (в раунде {worst}).")
-
-def print_run_summary(log):
-    total = 0.0
-    rounds = 0
-    for r in log:
-        if isinstance(r, (list, tuple)) and len(r) > 1:
-            total += r[1]
-            rounds += 1
-    if rounds > 0:
-        print(f"Нанесено урона: {total:.1f} за {rounds} раундов, в среднем {total / rounds:.1f} за раунд.")
-    else:
-        print("В этом прохождении не было сражений.")
-
-
-
-def scout(r, c, seen):
-    if not (0 <= r < len(MAP) and 0 <= c < len(MAP[r])):
-        return 0
-    if (r, c) in seen or MAP[r][c] == "#":
-        return 0
-    seen.add((r, c))
-    total = 1
-    for dr, dc in DIRECTIONS.values():
-        total += scout(r + dr, c + dc, seen)
-    return total
-
-
-def write_save():
-    save = {}
-    save["hero"] = hero_name
-    save["health"] = health
-    save["stamina"] = stamina
-    save["gold"] = gold_total
-    save["actions"] = actions
-    save["enemies"] = enemies
-    save["position"] = [hero_r, hero_c]
-    save["visited"] = [list(p) for p in visited]
-    save["loot"] = sorted(found_loot)
-    
-    with open("save.json", "w", encoding="utf-8") as f:
-        json.dump(save, f, ensure_ascii=False, indent=2)
-
 running = True
 
 try:
@@ -208,17 +196,11 @@ try:
         print()
         
         line = input()
-        cmd = line.strip().lower()
-        while cmd == "":
+        while line.strip() == "":
             print("Пустая команда. Введите команду или номер.")
             line = input()
-            cmd = line.strip().lower()
             
-        words = cmd.split()
-        verb = words
-        
-        if cmd in num_to_verb:
-            verb = num_to_verb[cmd]
+        verb, words = parse_command(line)
             
         match verb:
             case "help":
@@ -231,13 +213,13 @@ try:
                 print("Вы осматриваетесь вокруг. Комната пуста, на полу лишь пыль.")
                 
             case "идти":
-                if len(words) > 1 and words in DIRECTIONS:
-                    dr, dc = DIRECTIONS[words]
+                if len(words) > 1 and words[1] in DIRECTIONS:
+                    dr, dc = DIRECTIONS[words[1]]
                     nr, nc = hero_r + dr, hero_c + dc
                     if 0 <= nr < len(MAP) and 0 <= nc < len(MAP[nr]) and MAP[nr][nc] != "#":
                         hero_r, hero_c = nr, nc
                         visited.add((hero_r, hero_c))
-                        print(f"Ты шагаешь на {words}. Комната ({hero_r}, {hero_c}).")
+                        print(f"Ты шагаешь на {words[1]}. Комната ({hero_r}, {hero_c}).")
                         
                         if (hero_r, hero_c) in LOOT:
                             item = LOOT[(hero_r, hero_c)]
@@ -245,26 +227,23 @@ try:
                                 found_loot.add(item)
                                 print(f"Ты находишь предмет: {item}! Уникальный лут: {len(found_loot)}.")
                     else:
-                        print(f"Не могу идти на {words}: стена или край карты.")
+                        print(f"Не могу идти на {words[1]}: стена или край карты.")
                 else:
-                    cost = 2
-                    if stamina >= cost:
-                        stamina -= cost
-                        print("Вы осторожно идёте вперёд. Пол скрипит под ногами.")
-                    else:
-                        health -= cost - stamina
-                        stamina = 0
+                    overworked = hero.spend_stamina(2)
+                    if overworked:
                         print("Сил больше нет — вы идёте на одном упорстве.")
+                    else:
+                        print("Вы осторожно идёте вперёд. Пол скрипит под ногами.")
                     
             case "отдохнуть":
-                stamina = min(stamina + 2, max_stamina)
+                hero.stamina = min(hero.stamina + 2, max_stamina)
                 print("Вы успешно отдохнули и набрались сил!")
                 
             case "слушать":
                 print("Вы прислушались. Слышен далёкий шорох и капли воды.")
                 
             case "факел":
-                stamina = stamina - 7
+                hero.stamina = hero.stamina - 7
                 print("Вы зажгли факел и осмотрели стены.")
                 
             case "тренировка":
@@ -274,7 +253,7 @@ try:
                 print("Вы подходите к дереву.")
                 print(f"Наносите {strikes} ударов.")
                 for i in range(1, strikes + 1):
-                    hit_damage, crit = dungeon.hero_hit(i, damage, crit_damage)
+                    hit_damage, crit = hero.strike(i)
                     if crit:
                         crit_count += 1
                         print(f"Удар {i}: {hit_damage:.1f} — критический!")
@@ -289,7 +268,8 @@ try:
                     print("Вы спускаетесь по лестнице. Но подземелье уже пусто.")
                 else:
                     enemy = random.choice(enemies)
-                    rounds, won, health, loot = dungeon.fight(enemy, health, ability_bonus, damage, crit_damage)
+                    foe = dungeon.Enemy(enemy, dungeon.enemy_stats[enemy])
+                    rounds, won, loot = dungeon.fight(foe, hero, ability_bonus)
                     
                     for r in rounds:
                         log.append(r)
@@ -302,22 +282,10 @@ try:
                             print(Fore.BLUE + win_msg + Style.RESET_ALL)
                         else:
                             print(win_msg)
-                        (f"Бой длился: {len(rounds)} раундов.")
+                print(f"Бой длился: {len(rounds)} раундов.")
                 
             case "лидеры":
-                def print_leaderboard(log):
-                    if not log:
-                        print("Вы еще не сражались.")
-                        return
-        
-                    top = sorted(log, key=lambda r: r[1], reverse=True)[:3]
-                    print("Таблица лидеров (урон героя):")
-                    for i in range(len(top)):
-                        print(f"{i + 1}. Раунд {top[i][0]}: {top[i][1]:.1f}")
-        
-                    worst = max(log, key=lambda r: r[2])
-                    print(f"Самый сильный удар врага: {worst[2]} (в раунде {worst[0]}).")
-
+                print_leaderboard(log)
                 
             case "магазин":
                 print("Магазин:")
@@ -362,11 +330,11 @@ try:
                 if inventory.get(item, 0) == 0:
                     print(f"В рюкзаке нет предмета '{item}'.")
                 else:
-                    health = min(health + 10, max_health)
+                    hero.heal(10, max_health)
                     inventory[item] -= 1
                     if inventory[item] == 0:
                         del inventory[item]
-                    print(f"Вы выпили '{item}'. Здоровье: {health}. Осталось в рюкзаке: {inventory.get(item, 0)} шт.")
+                    print(f"Вы выпили '{item}'. Здоровье: {hero.health}. Осталось в рюкзаке: {inventory.get(item, 0)} шт.")
                     
             case "карта":
                 print("Карта:")
@@ -403,8 +371,8 @@ try:
                 print(f"Не понимаю команду: '{line.strip()}'. Введите 'help' для справки.")
                 continue
                 
-        if health <= 0:
-            print(f"{hero_name} погибает. Подземелье забирает еще одного искателя.")
+        if hero.health <= 0:
+            print(f"{hero.name} погибает. Подземелье забирает еще одного искателя.")
             if os.path.exists("save.json"):
                 os.remove("save.json")
             running = False
@@ -420,14 +388,14 @@ except KeyboardInterrupt:
 finally:
     print()
     print(frame)
-    if health <= 0:
-        print(f"Ты не дошёл, {hero_name}. Действий совершено: {actions}.")
+    if hero.health <= 0:
+        print(f"Ты не дошёл, {hero.name}. Действий совершено: {actions}.")
     else:
-        print(f"Забег окончен, {hero_name}. Действий совершено: {actions}.")
+        print(f"Забег окончен, {hero.name}. Действий совершено: {actions}.")
         
     print_run_summary(log)
     
-    state = f"Здоровье: {health}/{max_health} Стамина: {stamina}/{max_stamina} Осталось врагов: {len(enemies)} Золото: {gold_total}"
+    state = f"Здоровье: {hero.health}/{max_health} Стамина: {hero.stamina}/{max_stamina} Осталось врагов: {len(enemies)} Золото: {gold_total}"
     if COLOR:
         print(Fore.GREEN + state + Style.RESET_ALL)
     else:
